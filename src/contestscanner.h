@@ -29,6 +29,8 @@ struct ScannedProblem {
 	QString englishName; // 源文件名 / data 子目录名；推不出来时为空，由老师补
 	QList<ScannedCase> cases;
 	QStringList notes; // 这道题自己的提示（未配对、0 字节等）
+	// 选择题：目录里只有 paper.md（题面）与 key.json（答案），没有传统测试点
+	bool choiceProblem = false;
 };
 
 // 待导入的题目 = 扫描结果 + 老师确认过的导入参数
@@ -52,6 +54,8 @@ struct PlannedProblem {
 	QStringList sourceFilesName;
 	QStringList graderFilesPath;
 	QStringList graderFilesName;
+	QString choicePaperFile;
+	QString choiceKeyFile;
 };
 
 // 一次扫描的结果

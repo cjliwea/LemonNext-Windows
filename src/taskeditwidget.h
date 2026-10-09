@@ -20,6 +20,7 @@ namespace Ui {
 class Settings;
 class Task;
 class QMenu;
+class QRadioButton;
 
 class TaskEditWidget : public QWidget {
 	Q_OBJECT
@@ -37,6 +38,9 @@ class TaskEditWidget : public QWidget {
 	Settings *settings{};
 	Task *editTask;
 	QMenu *taskTypeMenu{}; // 试题标题右侧题型按钮的下拉菜单
+	// LemonNext 选择题：.ui 里没有对应 radio，运行时补一个，
+	// 与其余题型 radio 同父，交给 Qt 的 autoExclusive 机制
+	QRadioButton *choiceButton_{};
 	void refreshWidgetState();
 	void refreshTaskInfo(); // 刷新顶部信息条（测试点 / 时限 / 内存 / 满分）
 	void refreshTaskTypeButton(); // 题型按钮文字与当前选中的隐藏 radio 同步
@@ -57,6 +61,7 @@ class TaskEditWidget : public QWidget {
 	void setToInteraction(bool);
 	void setToCommunication(bool);
 	void setToCommunicationExec(bool);
+	void setToChoice(bool);
 	void sourceFileNameChanged(const QString &);
 	void subFolderCheckChanged();
 	void inputFileNameChanged(const QString &);

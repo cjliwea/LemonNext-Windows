@@ -64,6 +64,11 @@ auto typeEntries() -> QList<TypeEntry> {
 	                      QObject::tr("两个程序通过管道通信。grader 已经是编译好的可执行文件，直接调用。"),
 	                      QObject::tr("需要：测试点、交互器源文件、已编译的 grader 可执行文件。")});
 
+	list.append(TypeEntry{Task::Choice, QObject::tr("选择题"),
+	                      QObject::tr("教师维护题面 paper.md 与答案 key.json，选手在网页上直接作答。"),
+	                      QObject::tr("需要：paper.md 题面、key.json 答案；没有测试点，"
+	                                  "满分取自 key.json 里所有题分数之和。")});
+
 	return list;
 }
 
@@ -244,11 +249,22 @@ auto AddProblemWizard::buildConfigPage() -> QWizardPage * {
 	answerExtensionEdit_ = new QLineEdit(extraCard_);
 	answerExtensionEdit_->setPlaceholderText(tr("例如 ans"));
 
+	// 选择题：题面与答案的文件名，相对 data/<源文件名>/，默认 paper.md / key.json
+	choicePaperEdit_ = new QLineEdit(extraCard_);
+	choicePaperEdit_->setText(QStringLiteral("paper.md"));
+	choicePaperEdit_->setPlaceholderText(tr("题面文件（默认 paper.md）"));
+
+	choiceKeyEdit_ = new QLineEdit(extraCard_);
+	choiceKeyEdit_->setText(QStringLiteral("key.json"));
+	choiceKeyEdit_->setPlaceholderText(tr("答案文件（默认 key.json）"));
+
 	extraForm_->addRow(tr("Special Judge"), specialJudgeRow_);
 	extraForm_->addRow(tr("交互器源文件"), interactorRow_);
 	extraForm_->addRow(tr("Grader 源码"), graderSourceRow_);
 	extraForm_->addRow(tr("Grader 可执行文件"), graderExecRow_);
 	extraForm_->addRow(tr("答案文件扩展名"), answerExtensionEdit_);
+	extraForm_->addRow(tr("题面文件"), choicePaperEdit_);
+	extraForm_->addRow(tr("答案文件"), choiceKeyEdit_);
 
 	outer->addWidget(extraCard_);
 
@@ -305,6 +321,7 @@ void AddProblemWizard::applyTypeVisibility() {
 	const bool wantsGraderSource = (type == Task::Communication);
 	const bool wantsGraderExec = (type == Task::CommunicationExec);
 	const bool wantsAnswerExtension = (type == Task::AnswersOnly);
+	const bool wantsChoice = (type == Task::Choice);
 
 	if (specialJudgeRow_)
 		extraForm_->setRowVisible(specialJudgeRow_, wantsSpecialJudge);
@@ -321,9 +338,15 @@ void AddProblemWizard::applyTypeVisibility() {
 	if (answerExtensionEdit_)
 		extraForm_->setRowVisible(answerExtensionEdit_, wantsAnswerExtension);
 
+	if (choicePaperEdit_)
+		extraForm_->setRowVisible(choicePaperEdit_, wantsChoice);
+
+	if (choiceKeyEdit_)
+		extraForm_->setRowVisible(choiceKeyEdit_, wantsChoice);
+
 	if (extraCard_)
 		extraCard_->setVisible(wantsSpecialJudge || wantsInteractor || wantsGraderSource ||
-		                       wantsGraderExec || wantsAnswerExtension);
+		                       wantsGraderExec || wantsAnswerExtension || wantsChoice);
 
 	if (table_)
 		table_->setSingleProblemMode(false);
@@ -411,6 +434,14 @@ void AddProblemWizard::collect() {
 
 			for (const QString &file : graderSourcePaths_)
 				plan.sourceFilesName.append(QFileInfo(file).fileName());
+		}
+
+		if (currentType_ == Task::Choice) {
+			if (choicePaperEdit_ && ! choicePaperEdit_->text().trimmed().isEmpty())
+				plan.choicePaperFile = choicePaperEdit_->text().trimmed();
+
+			if (choiceKeyEdit_ && ! choiceKeyEdit_->text().trimmed().isEmpty())
+				plan.choiceKeyFile = choiceKeyEdit_->text().trimmed();
 		}
 	}
 
@@ -501,6 +532,22 @@ bool AddProblemWizard::validateCurrentPage() {
 
 		if (currentType_ == Task::CommunicationExec && graderExecPaths_.isEmpty())
 			issues.append(tr("通信题（部分）必须提供已编译的 grader 可执行文件。"));
+
+		if (currentType_ == Task::Choice) {
+			// 选择题至少要有一个装着 paper.md / key.json 的目录
+			bool hasChoice = false;
+
+			for (const PlannedProblem &one : problems) {
+				if (one.scan.choiceProblem) {
+					hasChoice = true;
+					break;
+				}
+			}
+
+			if (! hasChoice)
+				issues.append(tr("选择题需要 paper.md 和有效的 key.json："
+				                 "请把装着这两个文件的题目文件夹拖进来。"));
+		}
 
 		if (! issues.isEmpty()) {
 			QMessageBox::warning(this, tr("新建题目"),

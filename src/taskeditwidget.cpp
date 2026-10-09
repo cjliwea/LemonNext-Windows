@@ -119,8 +119,13 @@ TaskEditWidget::TaskEditWidget(QWidget *parent) : QWidget(parent), ui(new Ui::Ta
 	// 菜单文字直接取自 radio 的 text()，沿用现有翻译，不新增 tr() 字符串
 	taskTypeMenu = new QMenu(this);
 
+	choiceButton_ = new QRadioButton(tr("选择题"), ui->traditionalButton->parentWidget());
+	choiceButton_->setVisible(false);
+	connect(choiceButton_, &QRadioButton::toggled, this, &TaskEditWidget::setToChoice);
+
 	for (QRadioButton *button : {ui->traditionalButton, ui->answersOnlyButton, ui->interactionButton,
-	                             ui->communicationButton, ui->communicationExecButton}) {
+	                             ui->communicationButton, ui->communicationExecButton,
+	                             choiceButton_}) {
 		QAction *action = taskTypeMenu->addAction(button->text());
 		connect(action, &QAction::triggered, this, [this, button] {
 			button->setChecked(true);
@@ -340,6 +345,10 @@ void TaskEditWidget::setEditTask(Task *task) {
 		ui->communicationExecButton->setChecked(true);
 	}
 
+	if (editTask->getTaskType() == Task::Choice) {
+		choiceButton_->setChecked(true);
+	}
+
 	refreshWidgetState();
 	// 载入题目后 radio 状态已就位，同步一次题型按钮文字（避免 setChecked 未发生变化时不触发 toggled）
 	refreshTaskTypeButton();
@@ -355,7 +364,7 @@ void TaskEditWidget::refreshWidgetState() {
 	// 卡片分组：编译设置不适用于提交答案题；高级卡片只有交互题 / 通信题才需要显示
 	const bool advanced = types == Task::Interaction || types == Task::Communication ||
 	                      types == Task::CommunicationExec;
-	ui->cardCompiler->setVisible(types != Task::AnswersOnly);
+	ui->cardCompiler->setVisible(types != Task::AnswersOnly && types != Task::Choice);
 	ui->cardAdvanced->setVisible(advanced);
 	if (advanced && ! ui->advancedToggle->isChecked())
 		ui->advancedToggle->setChecked(true);
@@ -366,21 +375,14 @@ void TaskEditWidget::refreshWidgetState() {
 	ui->interactorNameLabel->setVisible(types == Task::Interaction);
 	ui->interactorName->setVisible(types == Task::Interaction);
 	// ui->comparisonSetting->setVisible(types != Task::Interaction);
-	ui->sourceFileName->setEnabled(types == Task::Traditional || types == Task::Interaction ||
-	                               types == Task::AnswersOnly || types == Task::Communication ||
-	                               types == Task::CommunicationExec);
-	ui->sourceFileNameLabel->setEnabled(types == Task::Traditional || types == Task::Interaction ||
-	                                    types == Task::AnswersOnly || types == Task::Communication ||
-	                                    types == Task::CommunicationExec);
-	ui->sourceFileName->setVisible(types == Task::Traditional || types == Task::Interaction ||
-	                               types == Task::AnswersOnly || types == Task::Communication ||
-	                               types == Task::CommunicationExec);
-	ui->sourceFileNameLabel->setVisible(types == Task::Traditional || types == Task::Interaction ||
-	                                    types == Task::AnswersOnly || types == Task::Communication ||
-	                                    types == Task::CommunicationExec);
-	ui->subFolderCheck->setVisible(types == Task::Traditional || types == Task::Interaction ||
-	                               types == Task::AnswersOnly || types == Task::Communication ||
-	                               types == Task::CommunicationExec);
+	const bool wantsSourceName = types == Task::Traditional || types == Task::Interaction ||
+	                             types == Task::AnswersOnly || types == Task::Communication ||
+	                             types == Task::CommunicationExec || types == Task::Choice;
+	ui->sourceFileName->setEnabled(wantsSourceName);
+	ui->sourceFileNameLabel->setEnabled(wantsSourceName);
+	ui->sourceFileName->setVisible(wantsSourceName);
+	ui->sourceFileNameLabel->setVisible(wantsSourceName);
+	ui->subFolderCheck->setVisible(wantsSourceName);
 	ui->inputFileName->setEnabled((types == Task::Traditional || types == Task::Interaction ||
 	                               types == Task::Communication || types == Task::CommunicationExec) &&
 	                              ! editTask->getStandardInputCheck());
@@ -454,6 +456,15 @@ void TaskEditWidget::setToAnswersOnly(bool check) {
 	refreshWidgetState();
 }
 
+void TaskEditWidget::setToChoice(bool check) {
+	if (! check || ! editTask)
+		return;
+
+	editTask->setTaskType(Task::Choice);
+	refreshTaskTypeButton();
+	refreshWidgetState();
+}
+
 void TaskEditWidget::setToInteraction(bool check) {
 	if (! check || ! editTask)
 		return;
@@ -486,7 +497,8 @@ void TaskEditWidget::setToCommunicationExec(bool check) {
 // 题型按钮文字直接取自当前选中的 radio 的 text()，沿用现有翻译，不新增 tr() 字符串
 void TaskEditWidget::refreshTaskTypeButton() {
 	for (QRadioButton *button : {ui->traditionalButton, ui->answersOnlyButton, ui->interactionButton,
-	                             ui->communicationButton, ui->communicationExecButton}) {
+	                             ui->communicationButton, ui->communicationExecButton,
+	                             choiceButton_}) {
 		if (button->isChecked()) {
 			ui->taskTypeButton->setText(button->text() + QStringLiteral(" ▾"));
 			return;
@@ -501,7 +513,7 @@ void TaskEditWidget::refreshTaskTypeButton() {
 void TaskEditWidget::refreshTaskTypeMenu() {
 	const QList<QRadioButton *> buttons = {ui->traditionalButton, ui->answersOnlyButton,
 	                                       ui->interactionButton, ui->communicationButton,
-	                                       ui->communicationExecButton};
+	                                       ui->communicationExecButton, choiceButton_};
 	const QList<QAction *> actions = taskTypeMenu->actions();
 
 	for (int i = 0; i < buttons.size() && i < actions.size(); ++i)

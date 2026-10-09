@@ -63,6 +63,10 @@ auto Task::getCompilerConfiguration(const QString &compilerName) const -> QStrin
 
 auto Task::getAnswerFileExtension() const -> const QString & { return answerFileExtension; }
 
+auto Task::getChoicePaperFile() const -> const QString & { return choicePaperFile; }
+
+auto Task::getChoiceKeyFile() const -> const QString & { return choiceKeyFile; }
+
 auto Task::getSourceFilesPath() const -> const QStringList & { return sourceFilesPath; }
 
 auto Task::getSourceFilesName() const -> const QStringList & { return sourceFilesName; }
@@ -112,6 +116,16 @@ void Task::setCompilerConfiguration(const QString &compiler, const QString &conf
 }
 
 void Task::setAnswerFileExtension(const QString &extension) { answerFileExtension = extension; }
+
+void Task::setChoicePaperFile(const QString &file) {
+	if (! file.trimmed().isEmpty())
+		choicePaperFile = file;
+}
+
+void Task::setChoiceKeyFile(const QString &file) {
+	if (! file.trimmed().isEmpty())
+		choiceKeyFile = file;
+}
 
 void Task::setSourceFilesPath(const QStringList &pathList) { sourceFilesPath = pathList; }
 
@@ -253,6 +267,11 @@ int Task::writeToJson(QJsonObject &in) {
 	auto specialJudge = this->specialJudge;
 	specialJudge.replace(QDir::separator(), '/');
 	WRITE_JSON(in, specialJudge);
+	if (taskType == Task::Choice) {
+		WRITE_JSON(in, choicePaperFile);
+		WRITE_JSON(in, choiceKeyFile);
+	}
+
 	if (taskType == Task::Interaction) {
 		auto interactor = this->interactor;
 		interactor.replace(QDir::separator(), '/');
@@ -325,6 +344,11 @@ int Task::readFromJson(const QJsonObject &in) {
 	READ_JSON(in, realPrecision);
 	READ_JSON(in, specialJudge);
 	specialJudge.replace('/', QDir::separator());
+	if (taskType == Task::Choice) {
+		READ_JSON(in, choicePaperFile);
+		READ_JSON(in, choiceKeyFile);
+	}
+
 	if (taskType == Task::Interaction) {
 		READ_JSON(in, interactor);
 		interactor.replace('/', QDir::separator());

@@ -90,6 +90,31 @@ auto anySubdirHasPairs(const QString &dir, const QStringList &inExts, const QStr
 	return false;
 }
 
+// 选择题目录：教师把题面 paper.md 与答案 key.json 放在同一层。
+// 这种目录里没有 .in/.out 配对，靠文件名识别，不能走测试点配对那条路。
+auto isChoiceDir(const QString &dir) -> bool {
+	static const QStringList markers = {QStringLiteral("paper.md"), QStringLiteral("key.json")};
+
+	const QFileInfoList files = QDir(dir).entryInfoList(QDir::Files | QDir::NoSymLinks);
+
+	for (const QFileInfo &info : files) {
+		if (markers.contains(info.fileName().toLower()))
+			return true;
+	}
+
+	return false;
+}
+
+auto makeChoiceProblem(const QString &dir) -> ScannedProblem {
+	ScannedProblem problem;
+	problem.dirPath = QDir(dir).absolutePath();
+	problem.metaDir = problem.dirPath;
+	problem.choiceProblem = true;
+	problem.notes.append(
+	    QObject::tr("识别为选择题：题面 paper.md + 答案 key.json，没有传统测试点。"));
+	return problem;
+}
+
 // 通用「数据目录名」：HydroOJ 等 OJ 包常见的 `题目名/testdata/`、`题目名/data/` 结构里的中间层。
 // 收题如果收到这一层，题目名应该回到上一层（真正的题目目录）去取，否则题名会变成 "testdata"。
 auto isGenericDataDirName(const QString &name) -> bool {
@@ -143,6 +168,11 @@ void scanDir(const QString &dir, const QStringList &inExts, const QStringList &o
              QList<ScannedProblem> *problems, QStringList *warnings, int *containers) {
 	if (depth > maxScanDepth)
 		return;
+
+	if (isChoiceDir(dir)) {
+		problems->append(makeChoiceProblem(dir));
+		return;
+	}
 
 	const PairResult paired = collectPairs(dir, inExts, outExts);
 	const bool hasOwn = ! paired.cases.isEmpty();
@@ -345,16 +375,22 @@ auto ContestScanner::scan(const QStringList &paths) const -> ScanResult {
 
 	if (! files.isEmpty()) {
 		const QString parent = QFileInfo(files.first()).absolutePath();
-		const PairResult paired = collectPairs(parent, inExts_, outExts_);
 
-		if (paired.cases.isEmpty()) {
-			result.warnings.append(QObject::tr("拖入的文件里没有找到配对的输入 / 输出文件。"));
+		// 直接拖入 paper.md / key.json 也认，等同于拖入它们所在的目录
+		if (isChoiceDir(parent)) {
+			result.problems.append(makeChoiceProblem(parent));
 		} else {
-			ScannedProblem problem;
-			problem.dirPath = QDir(parent).absolutePath();
-			problem.metaDir = problem.dirPath;
-			problem.cases = paired.cases;
-			result.problems.append(problem);
+			const PairResult paired = collectPairs(parent, inExts_, outExts_);
+
+			if (paired.cases.isEmpty()) {
+				result.warnings.append(QObject::tr("拖入的文件里没有找到配对的输入 / 输出文件。"));
+			} else {
+				ScannedProblem problem;
+				problem.dirPath = QDir(parent).absolutePath();
+				problem.metaDir = problem.dirPath;
+				problem.cases = paired.cases;
+				result.problems.append(problem);
+			}
 		}
 	}
 

@@ -70,6 +70,8 @@ class TaskJudger : public QObject {
 	void taskSkipped(const std::pair<int, int> &);
 	void makeDialogAlert(QString);
 	int judge();
+	// 选择题：不跑程序、不比对测试点，只把选手作答与 key.json 比对
+	int judgeChoice();
 
 	QTemporaryDir temporaryDir;
 

@@ -19,7 +19,9 @@ class Settings;
 class Task : public QObject {
 	Q_OBJECT
   public:
-	enum TaskType { Traditional, AnswersOnly, Interaction, Communication, CommunicationExec };
+	// LemonNext 1.0.0 的题型编号：前 5 个沿用底座取值以保证旧比赛 JSON 可读，
+	// 选择题（自 LemonNext 引进）编号 5，排在最后。
+	enum TaskType { Traditional, AnswersOnly, Interaction, Communication, CommunicationExec, Choice };
 	enum ComparisonMode {
 		LineByLineMode,
 		IgnoreSpacesMode,
@@ -53,6 +55,10 @@ class Task : public QObject {
 	const QString &getGrader() const;
 	QString getCompilerConfiguration(const QString &) const;
 	const QString &getAnswerFileExtension() const;
+	// 选择题：题面文件（默认 paper.md）与答案文件（默认 key.json），都在
+	// data/<源文件名>/ 下
+	const QString &getChoicePaperFile() const;
+	const QString &getChoiceKeyFile() const;
 	const QStringList &getSourceFilesPath() const;
 	const QStringList &getSourceFilesName() const;
 	const QStringList &getGraderFilesPath() const;
@@ -75,6 +81,8 @@ class Task : public QObject {
 	void setGrader(const QString &);
 	void setCompilerConfiguration(const QString &, const QString &);
 	void setAnswerFileExtension(const QString &);
+	void setChoicePaperFile(const QString &);
+	void setChoiceKeyFile(const QString &);
 	void setSourceFilesPath(const QStringList &);
 	void setSourceFilesName(const QStringList &);
 	void setGraderFilesPath(const QStringList &);
@@ -122,6 +130,8 @@ class Task : public QObject {
 	QStringList graderFilesName;
 	QMap<QString, QString> compilerConfiguration;
 	QString answerFileExtension;
+	QString choicePaperFile = QStringLiteral("paper.md");
+	QString choiceKeyFile = QStringLiteral("key.json");
 
   signals:
 	void problemTitleChanged(const QString &);

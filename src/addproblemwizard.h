@@ -70,6 +70,8 @@ class AddProblemWizard : public QWizard {
 	QWidget *graderExecRow_{};
 	QLineEdit *graderExecEdit_{};
 	QLineEdit *answerExtensionEdit_{};
+	QLineEdit *choicePaperEdit_{};
+	QLineEdit *choiceKeyEdit_{};
 	QLabel *summaryLabel_{};
 	Task::TaskType currentType_ = Task::Traditional;
 	QStringList graderSourcePaths_;

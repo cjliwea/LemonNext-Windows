@@ -1237,6 +1237,18 @@ void LemonLime::applyImportedProblems(const QList<PlannedProblem> &problems) {
 		                                    ? settings->getDefaultOutputFileExtension()
 		                                    : plan.answerFileExtension);
 
+		// 选择题：题面 / 答案文件名，以及选手作答文件的扩展名（网页端存的是纯文本）
+		if (plan.taskType == Task::Choice) {
+			if (! plan.choicePaperFile.isEmpty())
+				newTask->setChoicePaperFile(plan.choicePaperFile);
+
+			if (! plan.choiceKeyFile.isEmpty())
+				newTask->setChoiceKeyFile(plan.choiceKeyFile);
+
+			if (plan.answerFileExtension.isEmpty())
+				newTask->setAnswerFileExtension(QStringLiteral("txt"));
+		}
+
 		const int caseCount = static_cast<int>(plan.scan.cases.size());
 		const int scorePerCase = caseCount > 0 ? plan.fullScore / caseCount : 0;
 		const int scoreRemainder = caseCount > 0 ? plan.fullScore - scorePerCase * caseCount : 0;

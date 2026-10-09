@@ -846,5 +846,10 @@ void JudgingThread::run() {
 		case Task::AnswersOnly:
 			judgeAnswersOnlyTask();
 			break;
+
+		case Task::Choice:
+			// 选择题不通过 JudgingThread 判分：TaskJudger 在 judge() 里就走
+			// ChoiceJudge 直接出成绩，这里只是把枚举补全。
+			break;
 	}
 }

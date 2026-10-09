@@ -81,7 +81,7 @@ auto ProblemInstaller::install(const ScannedProblem &problem, Report *report, QS
 		return false;
 	}
 
-	if (problem.cases.isEmpty()) {
+	if (problem.cases.isEmpty() && ! problem.choiceProblem) {
 		if (error)
 			*error = QObject::tr("题目「%1」没有任何测试点").arg(problem.title);
 
@@ -95,6 +95,26 @@ auto ProblemInstaller::install(const ScannedProblem &problem, Report *report, QS
 			*error = QObject::tr("无法创建题目目录 %1").arg(QDir::toNativeSeparators(destination));
 
 		return false;
+	}
+
+	// 选择题没有测试点：把 paper.md / key.json 以及老师放在同一层的题面素材
+	// （插图等）原样搬进 data/<源文件名>/
+	if (problem.choiceProblem) {
+		const QFileInfoList entries = QDir(problem.dirPath).entryInfoList(QDir::Files | QDir::NoSymLinks);
+
+		for (const QFileInfo &one : entries) {
+			copyOneFile(one.absoluteFilePath(), QDir(destination).absoluteFilePath(one.fileName()),
+			            policy_, report, error);
+		}
+
+		if (report->failed > 0) {
+			report->messages.append(QObject::tr("选择题「%1」有 %2 个文件复制失败。")
+			                            .arg(problem.englishName)
+			                            .arg(report->failed));
+			return false;
+		}
+
+		return true;
 	}
 
 	const QDir sourceRoot(problem.dirPath);

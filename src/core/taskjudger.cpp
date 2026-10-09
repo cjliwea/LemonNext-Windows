@@ -9,13 +9,20 @@
 #include "base/LemonType.hpp"
 #include "base/compiler.h"
 #include "base/settings.h"
+#include "core/choicejudge.h"
 #include "core/contestant.h"
 #include "core/judgingthread.h"
 #include "core/subtaskdependencelib.h"
 #include "core/task.h"
 #include "core/testcase.h"
 
+#include <QFile>
+#include <QFileInfo>
+#include <QJsonDocument>
+#include <QJsonParseError>
+#include <QStringConverter>
 #include <QSysInfo>
+#include <QTextStream>
 #include <QTimer>
 #include <QtMath>
 
@@ -353,6 +360,10 @@ int TaskJudger::judge() {
 	if (! temporaryDir.isValid())
 		return 0;
 
+	// 选择题没有传统意义上的测试点，也不编译选手程序，单独一条判分路径
+	if (task->getTaskType() == Task::Choice)
+		return judgeChoice();
+
 	if (task->getTaskType() != Task::AnswersOnly)
 		if (! traditionalTaskPrepare())
 			return 1;
@@ -530,6 +541,101 @@ int TaskJudger::judge() {
 				testCaseScore[i] = score[i][j];
 		}
 	}
+
+	return 1;
+}
+
+// 选择题判分：读 data/<源文件名>/key.json 与选手作答文本，逐题比对。
+// 上层（Contestant / 结果查看器）是按「测试点二维数组」消费成绩的，
+// 所以这里仍按「1 个测试点」的形状填数据，只是内容换成了整卷结论。
+auto TaskJudger::judgeChoice() -> int {
+	const int fullScore = task->getTotalScore();
+
+	overallStatus = {maxDependValue};
+	timeUsed = {{0}};
+	memoryUsed = {{0}};
+	score = {{0}};
+	result = {{Skipped}};
+	message = {{QString()}};
+	inputFiles = {{QString()}};
+	testCaseScore = {fullScore};
+
+	const QString keyPath = Settings::dataPath() + task->getSourceFileName() + QDir::separator() +
+	                        task->getChoiceKeyFile();
+	QFile keyFile(keyPath);
+	QString keyError;
+
+	if (! keyFile.open(QIODevice::ReadOnly)) {
+		makeDialogAlert(tr("找不到答案文件 key.json (%1)").arg(QDir::toNativeSeparators(keyPath)));
+		result[0][0] = InvalidSpecialJudge;
+		overallStatus[0] = -1;
+		message[0][0] = tr("找不到答案文件 key.json (%1)").arg(QDir::toNativeSeparators(keyPath));
+		return 1;
+	}
+
+	const QList<ChoiceJudge::Question> key = ChoiceJudge::parseKeyText(keyFile.readAll(), &keyError);
+	keyFile.close();
+
+	if (key.isEmpty()) {
+		const QString reason = keyError.isEmpty() ? tr("key.json 没有题目") : keyError;
+		makeDialogAlert(reason);
+		result[0][0] = InvalidSpecialJudge;
+		overallStatus[0] = -1;
+		message[0][0] = reason;
+		return 1;
+	}
+
+	// 选手作答：source/<准考证号>/[<源文件名>/]<源文件名>.<答案扩展名>
+	QString extension = task->getAnswerFileExtension().trimmed();
+
+	if (extension.isEmpty())
+		extension = QStringLiteral("txt");
+
+	const QString answerFileName = task->getSourceFileName() + QStringLiteral(".") + extension;
+	QString answerDir = Settings::sourcePath() + contestant->getContestantName();
+
+	if (task->getSubFolderCheck())
+		answerDir += QString(QDir::separator()) + task->getSourceFileName();
+
+	QString answerText;
+	const QFileInfo answerInfo(QDir(answerDir).absoluteFilePath(answerFileName));
+
+	if (answerInfo.exists() && answerInfo.isFile()) {
+		QFile answerFile(answerInfo.absoluteFilePath());
+
+		if (answerFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+			QTextStream stream(&answerFile);
+			stream.setEncoding(QStringConverter::Utf8);
+			answerText = stream.readAll();
+		}
+	}
+
+	const QMap<int, QStringList> student = ChoiceJudge::parseStudentAnswer(answerText);
+	const ChoiceJudge::JudgeReport report = ChoiceJudge::judge(key, student);
+
+	const int rounded = qRound(report.score);
+
+	if (report.answered == 0) {
+		result[0][0] = Skipped;
+		overallStatus[0] = -1;
+	} else if (fullScore > 0 && rounded >= fullScore) {
+		result[0][0] = CorrectAnswer;
+		overallStatus[0] = maxDependValue;
+	} else if (rounded > 0) {
+		result[0][0] = PartlyCorrect;
+		overallStatus[0] = stateToStatus(PartlyCorrect, rounded, fullScore);
+	} else {
+		result[0][0] = WrongAnswer;
+		overallStatus[0] = -1;
+	}
+
+	score[0][0] = rounded;
+	testCaseScore[0] = fullScore;
+	inputFiles[0][0] = task->getSourceFileName() + QStringLiteral("/") + task->getChoiceKeyFile();
+	message[0][0] = ChoiceJudge::formatReport(report);
+
+	emit singleCaseFinished(contestant->getContestantName(), 0, 0, 0, static_cast<int>(result[0][0]),
+	                        score[0][0], 0, 0);
 
 	return 1;
 }
