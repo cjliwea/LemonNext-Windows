@@ -1,8 +1,11 @@
-# LemonLime Online
+# LemonNext for Windows
 
 为 OI 比赛而生的轻量评测系统，内置「在线提交服务」：选手通过浏览器提交代码，教师端一键收卷评测。
 
 A tiny judging environment for OI contests, with a built-in online submission server.
+
+本仓库是 **LemonNext 1.0.0（macOS）的 Windows 移植**，以 Project LemonLime Online 为底座做增量实现。
+移植依据、模块差异清单与分阶段计划见 **[PORTING.md](PORTING.md)**。
 
 需要 Qt 6.8 或更高版本。支持 Windows、Linux 与 macOS。
 
@@ -35,7 +38,7 @@ A tiny judging environment for OI contests, with a built-in online submission se
 
 ### Windows
 
-从 [Releases](https://github.com/cjliwea/LemonLime/releases) 下载 `lemon-win-qt6-x64-Release.zip`，解压即用（绿色便携版）。
+从 [Releases](https://github.com/cjliwea/LemonNext-Windows/releases) 下载 `lemon-win-qt6-x64-Release.zip`，解压即用（绿色便携版）。
 
 ### macOS / Linux
 
